@@ -1907,11 +1907,13 @@ const HTML = `<!DOCTYPE html>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <el-form-item class="!mb-0">
                             <template #label><div class="flex items-center gap-2"><span>{{ t('createDate') }}</span><span v-if="form.useLunar && form.createDate" class="text-[12px] font-bold text-purple-600 font-mono ml-1">{{ getLunarStr(form.createDate).replace('农历: ','') }}</span></div></template>
-                            <el-date-picker v-model="form.createDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="!w-full" :disabled="isEdit" popper-class="lunar-popper"><template #default="c"><div class="lunar-cell"><el-tooltip :content="getLunarTooltip(c)" placement="top" :hide-after="0" :enterable="false"><div class="view-date"><span class="solar">{{c.text}}</span><span class="lunar">{{getSmartLunarText(c)}}</span></div></el-tooltip><div class="view-month">{{getMonthStr(c.text)}}</div><div class="view-year"><span class="y-num">{{c.text}}</span><span class="y-ganzhi">{{getYearGanZhi(c.text)}}</span></div></div></template></el-date-picker>
+                            <el-date-picker v-if="form.useLunar" v-model="form.createDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="!w-full" :disabled="isEdit" popper-class="lunar-popper" :shortcuts="dateShortcuts"><template #default="c"><div class="lunar-cell"><el-tooltip :content="getLunarTooltip(c)" placement="top" :hide-after="0" :enterable="false"><div class="view-date"><span class="solar font-bold">{{c.text}}</span><span class="lunar">{{getSmartLunarText(c)}}</span></div></el-tooltip><div class="view-month">{{getMonthStr(c.text)}}</div><div class="view-year"><span class="y-num">{{c.text}}</span><span class="y-ganzhi">{{getYearGanZhi(c.text)}}</span></div></div></template></el-date-picker>
+                            <el-date-picker v-else v-model="form.createDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="!w-full" :disabled="isEdit" popper-class="lunar-popper" :shortcuts="dateShortcuts"><template #default="c"><div class="lunar-cell"><div class="view-date"><span class="solar font-bold">{{c.text}}</span></div><div class="view-month">{{getMonthStr(c.text)}}</div><div class="view-year"><span class="y-num">{{c.text}}</span></div></div></template></el-date-picker>
                         </el-form-item>
                         <el-form-item class="!mb-0">
                             <template #label><div class="flex items-center gap-2"><span>{{ t('lastRenew') }}</span><span v-if="form.useLunar && form.lastRenewDate" class="text-[12px] font-bold text-purple-600 font-mono ml-1">{{ getLunarStr(form.lastRenewDate).replace('农历: ','') }}</span></div></template>
-                            <el-date-picker v-model="form.lastRenewDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="!w-full" popper-class="lunar-popper"><template #default="c"><div class="lunar-cell"><el-tooltip :content="getLunarTooltip(c)" placement="top" :hide-after="0" :enterable="false"><div class="view-date"><span class="solar">{{c.text}}</span><span class="lunar">{{getSmartLunarText(c)}}</span></div></el-tooltip><div class="view-month">{{getMonthStr(c.text)}}</div><div class="view-year"><span class="y-num">{{c.text}}</span><span class="y-ganzhi">{{getYearGanZhi(c.text)}}</span></div></div></template></el-date-picker>
+                            <el-date-picker v-if="form.useLunar" v-model="form.lastRenewDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="!w-full" popper-class="lunar-popper" :shortcuts="dateShortcuts"><template #default="c"><div class="lunar-cell"><el-tooltip :content="getLunarTooltip(c)" placement="top" :hide-after="0" :enterable="false"><div class="view-date"><span class="solar font-bold">{{c.text}}</span><span class="lunar">{{getSmartLunarText(c)}}</span></div></el-tooltip><div class="view-month">{{getMonthStr(c.text)}}</div><div class="view-year"><span class="y-num">{{c.text}}</span><span class="y-ganzhi">{{getYearGanZhi(c.text)}}</span></div></div></template></el-date-picker>
+                            <el-date-picker v-else v-model="form.lastRenewDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="!w-full" popper-class="lunar-popper" :shortcuts="dateShortcuts"><template #default="c"><div class="lunar-cell"><div class="view-date"><span class="solar font-bold">{{c.text}}</span></div><div class="view-month">{{getMonthStr(c.text)}}</div><div class="view-year"><span class="y-num">{{c.text}}</span></div></div></template></el-date-picker>
                         </el-form-item>
                     </div>
                     
@@ -2522,6 +2524,11 @@ const HTML = `<!DOCTYPE html>
                     { label: 'Pacific/Auckland (新西兰奥克兰)', value: 'Pacific/Auckland' }
                 ];
 
+                const dateShortcuts = computed(() => [
+                    { text: lang.value==='zh'?'今天':'Today', value: parseYMD(getLocalToday()) },
+                    { text: lang.value==='zh'?'昨天':'Yesterday', value: () => { const d=parseYMD(getLocalToday()); d.setDate(d.getDate()-1); return d; } },
+                ]);
+
                 const pagedList = computed(() => {
                     const start = (currentPage.value - 1) * pageSize.value;
                     const end = start + pageSize.value;
@@ -2567,7 +2574,7 @@ const HTML = `<!DOCTYPE html>
                     openAdd, editItem, deleteItem, saveItem, openSettings, saveSettings, runCheck, openHistoryLogs, clearLogs, toggleEnable,importRef, exportData, triggerImport, handleImportFile,
                     Edit, Delete, Plus, VideoPlay, Setting, Bell, Document, Lock, Monitor, SwitchButton, Calendar, Timer, Files, AlarmClock, Warning, Search, Cpu, Link, Message, Promotion, Iphone, Moon, Sunny,
                     getDaysClass, formatDaysLeft, getTagClass, getLogColor, getLunarStr, getYearGanZhi, getSmartLunarText, getLunarTooltip, getMonthStr, getTagCount, tableRowClassName, channelMap, toggleChannel, testChannel, testing,
-                    calendarUrl, copyIcsUrl, resetCalendarToken,manualRenew,RefreshRight,timezoneList,currentPage, pageSize, pagedList,
+                    calendarUrl, copyIcsUrl, resetCalendarToken,manualRenew,RefreshRight,timezoneList,currentPage, pageSize, pagedList, dateShortcuts,
                     isDark, toggleTheme,
                     handleSortChange, handleFilterChange, 
                     nextDueFilters, typeFilters, uptimeFilters, lastRenewFilters
