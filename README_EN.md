@@ -6,7 +6,7 @@
 ![Vue.js](https://img.shields.io/badge/Frontend-Vue3%20%2B%20ElementPlus-42b883?logo=vue.js)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-**RenewHelper** is a full-stack service lifecycle reminder and management tool based on **Cloudflare Workers**. It is designed to manage periodic subscriptions, domain renewals, server expirations, and more. It requires no server (Serverless), incurs zero hosting costs, and features a stunning Mecha-style UI, a powerful Lunar/Solar calendar core, multi-channel notifications, and iCal schedule synchronization.
+**RenewHelper** is a full-stack service lifecycle reminder and management tool based on **Cloudflare Workers**. It is designed to manage periodic subscriptions, domain renewals, server expirations, and more. It requires no server (Serverless), incurs zero hosting costs, and features a stunning Mecha-style UI, a powerful Lunar/Solar calendar core, multi-channel notifications, and iCal schedule synchronization. **v1.3.5+ now supports both Worker and Docker deployments.**
 
 <div align="center">
   <img src="./assets/mainUI_darkEN_shot.png" alt="RenewHelper 界面预览" width="800">
@@ -15,7 +15,7 @@
 
 ## ✨ Key Features
 
-- **⚡️ Serverless Architecture**: Runs entirely on Cloudflare Workers using KV storage. No VPS required, and the free tier is usually sufficient for personal use.
+- **⚡️ Serverless Architecture**: Runs entirely on Cloudflare Workers using KV storage. No VPS required, and the free tier is usually sufficient for personal use. v1.3.5+ now also supports standalone Docker deployment.
 - **📅 Smart Cycle Management**:
   - Supports both **Solar (Gregorian)** and **Lunar** calendar cycles. Built-in high-precision Lunar algorithm (1900-2100).
   - Perfect for handling monthly/yearly subscriptions (Solar) or birthdays/traditional festivals (Lunar).
@@ -106,8 +106,164 @@ To enable auto-renewal and notifications, **you must set a Cron Trigger.**
 1.  Click the **Triggers** tab at the top.
 2.  Scroll down to **Cron Triggers**.
 3.  Click **Add Cron Trigger**.
-4.  **Cron schedule**: Enter `0/30 * * * *` exactly (This means check every 30 minutes. Do not change this logic!).
+4.  **Cron schedule**: Enter `0,30 * * * *` exactly (This means check every 30 minutes. Do not change this logic!).
 5.  Click **Add Trigger**.
+
+### Method 3: Deploy via GitHub Actions (Recommended)
+This method is ideal for users who prioritize **privacy** and want **automatic updates**. It eliminates the need to authorize third-party applications, keeping all your credentials securely stored within your own GitHub repository.
+
+1. **Fork the Repository**: Click the **Fork** button in the top-right corner of this page to copy the project to your own GitHub account.
+2. **Prepare Cloudflare Credentials**:
+   - **Account ID**: Find this on the right side of the Cloudflare Workers dashboard overview.
+   - **API Token**: Go to [My Profile](https://dash.cloudflare.com/profile/api-tokens) -> API Tokens -> Create Token -> Use the **Edit Cloudflare Workers** template -> Generate and copy the token.
+
+3. **Create KV Namespace**:
+   - Create a new KV namespace (e.g., `RENEW_KV`) in the Cloudflare dashboard.
+   - Copy the **ID** of this new KV.
+
+4. **Configure GitHub Secrets**:
+  - Go to your forked repository -> **Settings** -> **Secrets and variables** -> **Actions**.
+  - Click **New repository secret** and add the following 4 secrets:
+    - `CF_API_TOKEN`: Paste your Cloudflare API Token.
+    - `CF_ACCOUNT_ID`: Paste your Cloudflare Account ID.
+    - `CF_KV_ID`: Paste your copied KV ID (Actions will automatically inject this).
+    - `AUTH_PASSWORD`: Enter your desired login password (Once set, it will not be overwritten even when syncing code).
+
+5. **Enable and Deploy**:
+   - Navigate to the **Actions** tab and click the green button **I understand my workflows...** to enable them.
+   - Select **Deploy to Cloudflare Workers** from the sidebar, then click **Run workflow** to trigger the initial deployment manually.
+   - **Updates**: Whenever a new version is released, simply click **Sync Fork** on your GitHub repository page. GitHub Actions will automatically deploy the latest code (including new features) to your Worker while preserving your password settings.
+
+### Method 4: Docker Deployment
+
+RenewHelper can be easily deployed using Docker. This method simulates the Cloudflare Workers environment locally using Miniflare, ensuring your data remains private and self-hosted.
+
+#### Prerequisites
+
+  * Docker Engine installed
+  * Docker Compose installed
+
+#### Quick Start
+
+1.  Create a directory for RenewHelper (e.g., `renewhelper`).
+2.  Create a file named `docker-compose.yml` inside that directory with the following content:
+
+```yaml
+services:
+  renew-helper:
+    # Official Image
+    image: ieax/renewhelper:latest
+    container_name: renew-helper
+    restart: unless-stopped
+    ports:
+      - "9787:9787" # Map container port 9787 to host port 9787
+    volumes:
+      # Data persistence: Maps host's ./data folder to container's data storage
+      - ./data:/data
+    environment:
+      # --- Configuration ---
+      
+      # 1. Login Password (Required)
+      - AUTH_PASSWORD=MySecretPassword
+      
+      # 2. Cron Schedule (Important!)
+      # Recommendation: Run every 30 minutes to match the frontend settings.DO NOT CHANGE！！！
+      # Syntax: "0,30 * * * *" means trigger at minute 0 and minute 30 of every hour.
+      - CRON_SCHEDULE=0,30 * * * *
+      
+      # 3. Timezone
+      # Sets the container timezone. This affects when the Cron triggers.
+      - TZ=Asia/Shanghai
+```
+
+3.  Start the container:
+
+    ```bash
+    docker compose up -d
+    ```
+
+4.  Access the dashboard at: `http://your-server-ip:9787`. To access RenewHelper securely over the internet with a domain (e.g., `https://renew.example.com`), you should set up a Reverse Proxy.
+
+<details>
+<summary><strong>🔒 Advanced: HTTPS & Domain Setup (Caddy)</strong></summary>
+
+#### 1. Modify `docker-compose.yml`
+
+Update your `docker-compose.yml` to include the Caddy service and link it to RenewHelper.
+
+```yaml
+services:
+  renew-helper:
+    image: ieax/renewhelper:latest
+    container_name: renew-helper
+    restart: unless-stopped
+    # No need to map ports to host, just expose to Caddy
+    expose:
+      - "9787"
+    volumes:
+      - ./data:/data
+    environment:
+      - AUTH_PASSWORD=admin
+      - CRON_SCHEDULE=0,30 * * * *
+      - TZ=Asia/Shanghai
+
+  caddy:
+    image: caddy:alpine
+    container_name: caddy-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - renew-helper
+
+volumes:
+  caddy_data:
+  caddy_config:
+````
+
+#### 2\. Create `Caddyfile`
+
+Create a file named `Caddyfile` (no extension) in the same directory:
+
+```caddy
+# Replace with your actual domain
+your-domain.com {
+    encode gzip
+    reverse_proxy renew-helper:9787
+}
+```
+
+#### 3\. Run
+
+```bash
+docker compose up -d
+```
+
+Your service will be available at `https://your-domain.com`.
+</details>
+
+#### 💾 Data Management
+
+  * **Location**: All data (subscriptions, settings, logs) is stored in the `./data` directory in the same folder as your `docker-compose.yml`.
+  * **Backup**: Simply backup the `./data` folder.
+  * **Migration**: Copy the `./data` folder to a new server to restore your data.
+
+#### 🔄 Updating
+
+To update to the latest version:
+
+```bash
+# 1. Pull the latest image
+docker compose pull
+
+# 2. Recreate the container
+docker compose up -d
+```
 
 ### 🎉 Deployment Complete!
 
@@ -178,7 +334,7 @@ Find the **Calendar Subscription** section in "Settings".
 ## ⚠️ Notes
 
 1.  **Data Security**: All data is stored in your Cloudflare KV. It is recommended to manually export JSON backups regularly.
-2.  **Free Tier Limits**:
+2.  **Free Tier Limits**: (This limitation does not apply to Docker deployment.)
     - Cloudflare Workers Free Tier is limited to 100,000 requests per day.
     - KV writes are limited to 1,000 per day.
 
